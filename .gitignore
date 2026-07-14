@@ -1,0 +1,15 @@
+# 依賴套件（用 npm install 還原即可，不需納入版控/打包）
+node_modules/
+
+# 執行期自動產生的資料
+uploads/
+filedb.json
+filedb.json.tmp
+
+# 環境變數（含密碼，絕對不要上傳到 GitHub）
+.env
+
+# 系統雜檔
+.DS_Store
+*.log
+npm-debug.log*

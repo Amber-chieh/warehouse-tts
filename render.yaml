@@ -1,0 +1,15 @@
+# Render 部署設定（Blueprint）。
+# 在 Render 建立服務時，連上這個 GitHub repo，Render 會自動讀取本檔。
+# ADMIN_PASSWORD 設為 sync:false，需在 Render 後台手動填入（不寫在檔案裡，避免密碼進版控）。
+services:
+  - type: web
+    name: warehouse-tts
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_USER
+        value: admin
