@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>倉儲部AI語音宣讀系統</title>
+    <style>
+        html, body { height: 100%; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8f9fa; padding: 20px; color: #334155; display: flex; justify-content: center; box-sizing: border-box; }
+
+        .system-container { width: 100%; max-width: 100%; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; display: flex; flex-direction: column; height: 100%; }
+
+        .system-title-bar { background-color: #0061C9; color: #ffffff; padding: 14px 20px; font-size: 20px; font-weight: 600; letter-spacing: 0.5px; flex-shrink: 0; }
+
+        .system-body { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        form { flex-shrink: 0; }
+        .form-row { display: flex; gap: 20px; margin-bottom: 15px; align-items: flex-start; }
+        .form-group { flex: 1; display: flex; flex-direction: column; }
+        .form-label { font-size: 14px; font-weight: 600; color: #1e293b; margin-bottom: 6px; }
+
+        .mode-box { display: flex; gap: 20px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 15px; border-radius: 4px; height: 38px; align-items: center; box-sizing: border-box; }
+        .mode-label { font-size: 13px; font-weight: 500; color: #334155; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
+        .upload-field-box { display: flex; gap: 10px; width: 100%; }
+        .file-info-text { flex-grow: 1; padding: 8px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 38px; box-sizing: border-box; line-height: 20px; }
+        .btn-browse { padding: 0 16px; background: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; cursor: pointer; font-weight: 500; height: 38px; line-height: 36px; transition: background 0.15s; }
+        .btn-browse:hover { background: #cbd5e1; }
+
+        .btn-submit { background: #007bff; color: #ffffff; border: none; padding: 10px 24px; font-size: 14px; font-weight: 500; border-radius: 4px; cursor: pointer; transition: background 0.15s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-submit:hover { background: #0069d9; }
+        .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; }
+        .btn-spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #ffffff; border-radius: 50%; animation: btn-spin 0.7s linear infinite; display: none; }
+        .btn-submit.loading .btn-spinner { display: inline-block; }
+        @keyframes btn-spin { to { transform: rotate(360deg); } }
+
+        .hint-text { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+
+        .result-box { margin-top: 15px; padding: 12px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; display: none; flex-shrink: 0; }
+        .link-container { display: flex; gap: 10px; }
+        .link-text { flex-grow: 1; padding: 6px 10px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; color: #1e293b; word-break: break-all; text-decoration: none; }
+        .btn-copy { padding: 6px 12px; background: #ffffff; color: #334155; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; cursor: pointer; font-weight: 500; }
+        .btn-copy:hover { background: #f8fafc; border-color: #94a3b8; }
+
+        .preview-box { margin-top: 20px; padding: 15px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; display: none; flex-direction: column; flex-grow: 1; overflow: hidden; }
+        .preview-title { font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 10px; padding-left: 2px; flex-shrink: 0; }
+        .preview-controls { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; background: #f1f5f9; padding: 6px 12px; border-radius: 4px; flex-shrink: 0; flex-wrap: wrap; }
+        .btn-preview-play { background: #0f172a; color: #ffffff; border: none; padding: 6px 12px; font-weight: 500; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .btn-preview-play:hover { background: #1e293b; }
+        .btn-preview-reset { background: #ffffff; color: #334155; border: 1px solid #cbd5e1; padding: 6px 12px; font-weight: 500; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .btn-preview-reset:hover { background: #f8fafc; }
+        .prev-select { padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 13px; max-width: 200px; }
+
+        /* 中文斷行改用 normal + break-word，避免把詞硬切 */
+        .preview-content { flex-grow: 1; overflow-y: auto; font-size: 16px; line-height: 1.7; color: #334155; background: #f8fafc; padding: 15px; border-radius: 4px; border: 1px solid #e2e8f0; scroll-behavior: smooth; word-break: normal; overflow-wrap: break-word; }
+
+        .preview-first-line { font-weight: bold; font-size: 20px; color: #0f172a; display: block; margin-bottom: 14px; }
+
+        .p-sentence { padding: 1px 4px; border-radius: 2px; cursor: pointer; }
+        .current-highlight { background-color: #bae6fd !important; color: #0c4a6e !important; font-weight: 600; }
+
+        /* 自訂通知視窗（取代瀏覽器原生 alert，避免顯示「localhost:3000 說」） */
+        .notice-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: none; align-items: center; justify-content: center; z-index: 9999; }
+        .notice-overlay.show { display: flex; }
+        .notice-box { background: #ffffff; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: 90%; max-width: 360px; overflow: hidden; animation: notice-pop 0.15s ease-out; }
+        @keyframes notice-pop { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .notice-header { background: #0061C9; color: #ffffff; padding: 12px 18px; font-size: 15px; font-weight: 600; }
+        .notice-body { padding: 20px 18px; font-size: 15px; color: #334155; line-height: 1.6; }
+        .notice-footer { padding: 0 18px 16px; text-align: right; }
+        .notice-btn { background: #007bff; color: #ffffff; border: none; padding: 8px 22px; font-size: 14px; font-weight: 500; border-radius: 4px; cursor: pointer; }
+        .notice-btn:hover { background: #0069d9; }
+    </style>
+</head>
+<body>
+
+<!-- 自訂通知視窗（取代原生 alert） -->
+<div id="noticeOverlay" class="notice-overlay">
+    <div class="notice-box">
+        <div class="notice-header">系統通知</div>
+        <div id="noticeMessage" class="notice-body"></div>
+        <div class="notice-footer">
+            <button class="notice-btn" onclick="closeNotice()">確定</button>
+        </div>
+    </div>
+</div>
+
+<div class="system-container">
+    <div class="system-title-bar">
+        倉儲部AI語音宣讀系統
+    </div>
+
+    <div class="system-body">
+        <form id="uploadForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">運行模式</label>
+                    <div class="mode-box">
+                        <label class="mode-label">
+                            <input type="radio" name="operationMode" value="link" checked> 一般模式
+                        </label>
+                        <label class="mode-label">
+                            <input type="radio" name="operationMode" value="play"> 播放模式
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">檔案上傳</label>
+                    <div class="upload-field-box" onclick="document.getElementById('fileInput').click()">
+                        <input type="file" id="fileInput" name="file" accept=".txt" style="display: none;" onchange="updateFileInfo()">
+                        <div id="uploadText" class="file-info-text">請選擇 txt 檔案</div>
+                        <button type="button" class="btn-browse">選擇</button>
+                    </div>
+                    <div class="hint-text">僅支援 .txt 純文字檔（自動辨識 UTF-8 / Big5 編碼）</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 10px;">
+                <button type="submit" id="submitBtn" class="btn-submit"><span class="btn-spinner"></span><span id="submitLabel">送出</span></button>
+            </div>
+        </form>
+
+        <div id="resultBox" class="result-box">
+            <div class="link-container">
+                <a id="shareLink" class="link-text" href="#" target="_blank">讀取中...</a>
+                <button class="btn-copy" onclick="copyLink()">複製連結</button>
+            </div>
+        </div>
+
+        <div id="previewBox" class="preview-box">
+            <div class="preview-title">宣讀預覽</div>
+            <div class="preview-controls">
+                <button id="prevPlayBtn" class="btn-preview-play" onclick="togglePreviewSpeech()">播放試聽</button>
+                <button class="btn-preview-reset" onclick="resetPreviewSpeech()">重新播放</button>
+                <span style="font-size: 13px; color: #475569; margin-left: 6px;">語音：</span>
+                <select id="prevVoiceSelect" class="prev-select" onchange="onPreviewVoiceChange()">
+                    <option value="">載入中...</option>
+                </select>
+                <span style="font-size: 13px; color: #475569; margin-left: 6px;">語速：</span>
+                <select id="prevSpeedSelect" class="prev-select" onchange="updatePreviewSpeed()">
+                    <option value="0.75">0.75x (慢)</option>
+                    <option value="0.9">0.9x</option>
+                    <option value="1" selected>1.0x (標準)</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.5x (快)</option>
+                </select>
+            </div>
+            <div id="prevContent" class="preview-content"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 自訂通知視窗：取代原生 alert，標題固定為「系統通知」，不會顯示網域來源。
+function showNotice(message) {
+    document.getElementById('noticeMessage').innerText = message;
+    document.getElementById('noticeOverlay').classList.add('show');
+}
+function closeNotice() {
+    document.getElementById('noticeOverlay').classList.remove('show');
+}
+// 按 Enter 或 Esc 關閉視窗，操作更順手
+document.addEventListener('keydown', (e) => {
+    const overlay = document.getElementById('noticeOverlay');
+    if (overlay && overlay.classList.contains('show') && (e.key === 'Enter' || e.key === 'Escape')) {
+        closeNotice();
+    }
+});
+
+let currentLink = "";
+const synth = window.speechSynthesis;
+let isSpeaking = false;
+let isPaused = false;
+let availableVoices = [];
+let fallbackTimer = null;
+
+// paragraphs 結構同 listen.html：每段 { displaySentences, speechSentences, groups, sentenceEls }
+let paragraphs = [];
+let currentParaIdx = 0;
+
+const DELIMS = ['，', '。', '！', '？', '、', '；', '：'];
+const ENDERS = ['。', '！', '？'];
+const MAX_UTTER_CHARS = 120; // 單一 utterance 字數上限，避免無標點長段落被截斷
+
+function splitSentences(str) {
+    const rough = str.split(/([，。！？、；：])/).reduce((acc, current) => {
+        if (acc.length === 0 || DELIMS.includes(current)) {
+            if (acc.length > 0) acc[acc.length - 1] += current;
+            else acc.push(current);
+        } else {
+            if (current.trim()) acc.push(current);
+        }
+        return acc;
+    }, []);
+
+    const result = [];
+    for (const s of rough) {
+        if (s.length <= MAX_UTTER_CHARS) {
+            result.push(s);
+        } else {
+            for (let i = 0; i < s.length; i += MAX_UTTER_CHARS) {
+                result.push(s.slice(i, i + MAX_UTTER_CHARS));
+            }
+        }
+    }
+    return result;
+}
+
+function groupSentences(sentences) {
+    const groups = [];
+    let start = 0;
+    for (let i = 0; i < sentences.length; i++) {
+        const isEnder = ENDERS.some(e => sentences[i].endsWith(e));
+        if (isEnder || i === sentences.length - 1) {
+            groups.push({ start, end: i });
+            start = i + 1;
+        }
+    }
+    return groups;
+}
+
+// --- 語音清單處理：列出所有中文語音供選，預設優先曉臻 ---
+function populatePreviewVoices() {
+    availableVoices = synth.getVoices().filter(v => v.lang.toLowerCase().startsWith('zh'));
+    if (availableVoices.length === 0) availableVoices = synth.getVoices();
+
+    const sel = document.getElementById('prevVoiceSelect');
+    sel.innerHTML = '';
+
+    if (availableVoices.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.text = '（無可用語音）';
+        sel.appendChild(opt);
+        return;
+    }
+
+    let defaultIndex = availableVoices.findIndex(v => v.name.includes('Microsoft HsiaoChen Online') || v.name.includes('曉臻'));
+    if (defaultIndex === -1) defaultIndex = availableVoices.findIndex(v => /zh(-|_)?TW/i.test(v.lang));
+    if (defaultIndex === -1) defaultIndex = 0;
+
+    availableVoices.forEach((v, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.text = `${v.name} (${v.lang})`;
+        if (i === defaultIndex) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+function getSelectedVoice() {
+    const idx = parseInt(document.getElementById('prevVoiceSelect').value, 10);
+    return (!isNaN(idx) && availableVoices[idx]) ? availableVoices[idx] : null;
+}
+
+function onPreviewVoiceChange() {
+    if (isSpeaking) {
+        synth.cancel();
+        playFromSentence(currentParaIdx, 0);
+    }
+}
+
+function updateFileInfo() {
+    const input = document.getElementById('fileInput');
+    if (input.files.length > 0) {
+        document.getElementById('uploadText').innerText = input.files[0].name;
+        document.getElementById('uploadText').style.color = "#1e293b";
+    }
+}
+
+document.getElementById('uploadForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const fileInput = document.getElementById('fileInput');
+    if (fileInput.files.length === 0) return showNotice('請先選擇檔案。');
+
+    // 前端先擋一次副檔名，非 .txt 直接提示（後端仍會再檢查一次）
+    const name = fileInput.files[0].name.toLowerCase();
+    if (!name.endsWith('.txt')) {
+        return showNotice('僅支援 .txt 純文字檔，請重新選擇。');
+    }
+
+    resetPreviewSpeech();
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    // 進入載入狀態：禁用送出鈕、顯示旋轉圈與「處理中…」，避免重複點擊
+    setSubmitLoading(true);
+
+    try {
+        const response = await fetch('/api/upload', { method: 'POST', body: formData });
+        const data = await response.json();
+
+        if (data.success) {
+            currentLink = window.location.origin + data.shareLink;
+
+            const selectedMode = document.querySelector('input[name="operationMode"]:checked').value;
+            if (selectedMode === 'play') {
+                const fullWidth = window.screen.availWidth;
+                const fullHeight = window.screen.availHeight;
+                window.open(currentLink, '_blank', `width=${fullWidth},height=${fullHeight},top=0,left=0,resizable=yes,scrollbars=yes`);
+                return;
+            }
+
+            document.getElementById('shareLink').href = currentLink;
+            document.getElementById('shareLink').innerText = currentLink;
+            document.getElementById('resultBox').style.display = 'block';
+
+            buildPreview(data.text, data.speechText || data.text);
+            document.getElementById('previewBox').style.display = 'flex';
+        } else {
+            // 顯示後端回傳的具體錯誤訊息（例如副檔名不符、處理失敗）
+            showNotice(data.message || '文件上傳失敗。');
+        }
+    } catch (err) {
+        showNotice('系統連線異常。');
+    } finally {
+        // 不論成功或失敗都復原按鈕狀態（play 模式已提前 return，不受影響）
+        setSubmitLoading(false);
+    }
+};
+
+// 切換送出按鈕的載入狀態
+function setSubmitLoading(loading) {
+    const btn = document.getElementById('submitBtn');
+    const label = document.getElementById('submitLabel');
+    if (!btn) return;
+    btn.disabled = loading;
+    btn.classList.toggle('loading', loading);
+    if (label) label.innerText = loading ? '處理中…' : '送出';
+}
+
+function buildPreview(displayText, speechText) {
+    const rawDisplayParagraphs = displayText.split('\n').filter(p => p.trim());
+    const rawSpeechParagraphs = speechText.split('\n').filter(p => p.trim());
+
+    const prevContent = document.getElementById('prevContent');
+    prevContent.innerHTML = "";
+    currentParaIdx = 0;
+
+    let isFirstLineProcessed = false;
+
+    paragraphs = rawDisplayParagraphs.map((paraText, pIdx) => {
+        const displaySentences = splitSentences(paraText);
+        let speechSentences = splitSentences(rawSpeechParagraphs[pIdx] || paraText);
+        if (speechSentences.length !== displaySentences.length) {
+            speechSentences = displaySentences; // 對不齊時安全退回，避免高亮/朗讀錯位
+        }
+        const groups = groupSentences(displaySentences);
+
+        const paraDiv = document.createElement('div');
+
+        const sentenceEls = displaySentences.map((text, sIdx) => {
+            const isTitleLine = !isFirstLineProcessed && text.trim().startsWith("AI宣讀");
+            const span = document.createElement('span');
+            span.id = `prev-sent-${pIdx}-${sIdx}`;
+            span.className = isTitleLine ? 'p-sentence preview-first-line' : 'p-sentence';
+            span.innerText = text;
+            span.onclick = () => jumpToPreviewSentence(pIdx, sIdx);
+            paraDiv.appendChild(span);
+            if (isTitleLine) isFirstLineProcessed = true;
+            return span;
+        });
+
+        prevContent.appendChild(paraDiv);
+        if (pIdx < rawDisplayParagraphs.length - 1) prevContent.appendChild(document.createElement('br'));
+
+        return { displaySentences, speechSentences, groups, sentenceEls };
+    });
+}
+
+function highlightSentence(pIdx, sIdx) {
+    document.querySelectorAll('.p-sentence').forEach(el => el.classList.remove('current-highlight'));
+    const el = paragraphs[pIdx] && paragraphs[pIdx].sentenceEls[sIdx];
+    if (el) {
+        el.classList.add('current-highlight');
+        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+}
+
+function findGroupIndex(pIdx, sIdx) {
+    return paragraphs[pIdx].groups.findIndex(g => sIdx >= g.start && sIdx <= g.end);
+}
+
+function clearFallbackTimer() {
+    if (fallbackTimer) {
+        clearTimeout(fallbackTimer);
+        fallbackTimer = null;
+    }
+}
+
+// 核心播放函式：整句合併成一個 utterance 朗讀，用 onboundary 即時高亮；
+// 若 onboundary 不觸發（某些中文語音的通病），改用計時器依字數估算推進高亮。
+function playFromSentence(pIdx, groupIdx, fromSentIdx) {
+    clearFallbackTimer();
+
+    if (pIdx >= paragraphs.length) {
+        resetPreviewSpeech();
+        return;
+    }
+    const para = paragraphs[pIdx];
+    if (groupIdx >= para.groups.length) {
+        playFromSentence(pIdx + 1, 0);
+        return;
+    }
+
+    currentParaIdx = pIdx;
+    const group = para.groups[groupIdx];
+    const startIdx = (fromSentIdx !== undefined) ? fromSentIdx : group.start;
+
+    highlightSentence(pIdx, startIdx);
+
+    const text = para.speechSentences.slice(startIdx, group.end + 1).join('').trim();
+    if (!text) {
+        playFromSentence(pIdx, groupIdx + 1);
+        return;
+    }
+
+    const offsets = [];
+    let cum = 0;
+    for (let i = startIdx; i <= group.end; i++) {
+        const len = para.speechSentences[i].length;
+        offsets.push({ idx: i, start: cum, end: cum + len });
+        cum += len;
+    }
+
+    const utter = new SpeechSynthesisUtterance(text);
+    const voice = getSelectedVoice();
+    if (voice) {
+        utter.voice = voice;
+        utter.lang = voice.lang;
+    }
+    const rate = parseFloat(document.getElementById('prevSpeedSelect').value);
+    utter.rate = rate;
+
+    let boundaryFired = false;
+
+    function scheduleFallback(localIdx) {
+        clearFallbackTimer();
+        if (localIdx >= offsets.length) return;
+        const o = offsets[localIdx];
+        highlightSentence(pIdx, o.idx);
+        const charCount = o.end - o.start;
+        const perChar = 0.26 / rate;
+        const duration = Math.max(500, charCount * perChar * 1000);
+        fallbackTimer = setTimeout(() => scheduleFallback(localIdx + 1), duration);
+    }
+
+    utter.onboundary = (e) => {
+        boundaryFired = true;
+        clearFallbackTimer();
+        const match = offsets.find(o => e.charIndex >= o.start && e.charIndex < o.end);
+        if (match) highlightSentence(pIdx, match.idx);
+    };
+
+    utter.onstart = () => {
+        setTimeout(() => {
+            if (!boundaryFired && isSpeaking && !isPaused) scheduleFallback(0);
+        }, 600);
+    };
+
+    utter.onend = () => {
+        clearFallbackTimer();
+        if (isSpeaking && !isPaused) playFromSentence(pIdx, groupIdx + 1);
+    };
+    utter.onerror = () => {
+        clearFallbackTimer();
+        if (isSpeaking && !isPaused) playFromSentence(pIdx, groupIdx + 1);
+    };
+
+    synth.speak(utter);
+}
+
+function togglePreviewSpeech() {
+    const playBtn = document.getElementById('prevPlayBtn');
+    if (paragraphs.length === 0) return;
+
+    if (!isSpeaking) {
+        isSpeaking = true;
+        isPaused = false;
+        playBtn.innerText = "暫停";
+        playFromSentence(currentParaIdx, 0);
+    } else {
+        isSpeaking = false;
+        isPaused = true;
+        playBtn.innerText = "繼續";
+        synth.cancel();
+        clearFallbackTimer();
+    }
+}
+
+function resetPreviewSpeech() {
+    synth.cancel();
+    clearFallbackTimer();
+    isSpeaking = false;
+    isPaused = false;
+    currentParaIdx = 0;
+    const btn = document.getElementById('prevPlayBtn');
+    if (btn) btn.innerText = "播放試聽";
+    document.querySelectorAll('.p-sentence').forEach(el => el.classList.remove('current-highlight'));
+    const box = document.getElementById('prevContent');
+    if (box) box.scrollTop = 0;
+}
+
+function jumpToPreviewSentence(pIdx, sIdx) {
+    synth.cancel();
+    clearFallbackTimer();
+    isSpeaking = true;
+    isPaused = false;
+    document.getElementById('prevPlayBtn').innerText = "暫停";
+    const gIdx = findGroupIndex(pIdx, sIdx);
+    playFromSentence(pIdx, gIdx, sIdx);
+}
+
+function updatePreviewSpeed() {
+    if (isSpeaking) {
+        synth.cancel();
+        clearFallbackTimer();
+        playFromSentence(currentParaIdx, 0);
+    }
+}
+
+function copyLink() {
+    navigator.clipboard.writeText(currentLink);
+    showNotice('連結已複製至剪貼簿。');
+}
+
+populatePreviewVoices();
+if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = populatePreviewVoices;
+}
+</script>
+</body>
+</html>
